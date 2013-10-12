@@ -1,6 +1,15 @@
-=== Version 0.9.2
+=== Version 0.9.4
+* Enhancements
+  * Added class_name method to Element
+
+=== Version 0.9.3 / 2013-8-23
+* Enhancements
+  * Updated to use the latest selenium-webdriver 2.35.1
+
+=== Version 0.9.2 / 2013-8-23
 * Enhancements
   * Added elements method to accessor so one can gen methods for generic collections of elements
+  * Updated to use the latest selenium-webdriver 2.35.0
 
 === Version 0.9.1 / 2013-7-16
 * Enhancements
