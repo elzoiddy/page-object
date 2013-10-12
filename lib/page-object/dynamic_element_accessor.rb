@@ -6,10 +6,66 @@ module PageObject
   # For example: A quiz creation page can create one quiz with many 
   # number of questions. With rails nested attributes, you can have
   # an "Add one more question" button that adds one more question to the quiz.
-  # Let's say each question have 4 multiple guess answers. It can get really
-  # complicated really soon keep track of all the question fields and their
+  # dynamically.
+  # Let's say each question have a few multiple guess answers. It can get really
+  # complicated really quick to keep track of all the question fields and their
   # answers fields. 
-  
+  # 
+  # example usage:
+  #
+  # Let's say your webpage looks like this
+  # <div class='questions'>
+  #   <label>Question</label>
+  #   <input id='question' type='text'>
+  #   <label>Answers</label>
+  #   <input id='answer1' type='text'>
+  #   <input id='answer2' type='text'>
+  # </div>
+  # ...
+  # <button>Add one more question</button>
+  #
+  # # First define class for one of your dynamic objects in this case a single question
+  #
+  # class QuizQuestion
+  #   include PageObject::DynamicElementAccessor
+  # 
+  #   # definte accessors as you normally with page objects
+  #   # you can create another Answer class with this module mixed in
+  #   # if you want arbitrary number of answers, it can be nested.  
+  #   text_field :question,    :css => "input[id$=question]"
+  #   text_field :answer1,     :css => "input[id$=answer1]"
+  #   text_field :answer2,     :css => "input[id$=answer2]"
+  # end
+  #
+  # # Inside your QuizCreator page object, define a getter that gets the all the questions.
+  # # If new question gets added as a result of some dynamic actions on the page
+  # # simply call get_questions again to get the new set of questions. 
+  # class QuizCreator
+  #   include PageObject
+  #
+  #   def get_questions
+  #     questions = []
+  #     elements = self.div_elements(:css => "div.question")
+  #     elements.each do |element|
+  #       if element.visible?
+  #         questions << QuizQuestion.new(
+  #           :page_object    => self,
+  #           :parent_element => element
+  #         )
+  #       end
+  #     end
+  #     questions
+  #   end
+  # end   
+  # 
+  # After you get the list of questions back, you can operate on each question
+  # object as if their mini page object themselves.
+  #  questions = QuizCreator.new(...).get_questions
+  #  questions[0].question ="123"
+  #  questions[0].answer1  ="234"
+  #  questions[1].question ="abc"
+  #  questions[1].answer2  ="efg"
+  # 
   module DynamicElementAccessor
     
     def initialize(options)
@@ -23,17 +79,19 @@ module PageObject
     
     def self.included(base)
       base.extend ClassMethods
+      attr_accessor :page_object, :parent_element
     end
     
     module ClassMethods #:nodoc:
       def accessor_selectors #:nodoc:
+        @accessor_selectors ||= {}
         @accessor_selectors
       end
 
       # text field generators
     
       def text_field(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
 
         value_getters(name, :text_field)
         value_setters(name, :text_field)
@@ -43,7 +101,7 @@ module PageObject
       # text area generators
     
       def text_area(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
 
         value_getters(name, :text_area)
         value_setters(name, :text_area)
@@ -53,7 +111,7 @@ module PageObject
       # hidden field generators
     
       def hidden_field(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         value_getters(name, :hidden_field)
       
         standard_methods(name, :hidden_field)
@@ -62,7 +120,7 @@ module PageObject
       # div generators
     
       def div(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
       
         text_getters(name, :div)
         standard_methods(name, :div)
@@ -71,7 +129,7 @@ module PageObject
       # label generators
     
       def label(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
   
         text_getters(name, :label)
         standard_methods(name, :label)
@@ -80,7 +138,7 @@ module PageObject
       # file field generators
       
       def file_field(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
   
         value_setters(name, :file_field)
         standard_methods(name, :file_field)
@@ -89,7 +147,7 @@ module PageObject
       # button generators
     
       def button(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         define_method(name) do
           element = self.get_child_element(name, :button)
           element.click
@@ -101,7 +159,7 @@ module PageObject
       # checkbox generators
     
       def checkbox(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         define_method name do
           element = self.get_child_element(name, :checkbox)
           element.checked?
@@ -130,7 +188,7 @@ module PageObject
       # select list generators
 
       def select_list(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         define_method(name) do
           element = self.get_child_element(name, :select_list)
           element.value
@@ -151,7 +209,7 @@ module PageObject
       # link generators
     
       def link(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         define_method(name) do
           element = self.get_child_element(name, :link)
           element.click
@@ -163,14 +221,14 @@ module PageObject
       # image generators
     
       # def image(name, selector)
-      #   @accessor_selectors[name.to_sym] = selector.clone
+      #   accessor_selectors[name.to_sym] = selector.clone
       #   standard_methods(name, :image)
       # end
 
       # span generators
     
       def span(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         text_getters(name, :span)
         standard_methods(name, :span)
       end
@@ -178,27 +236,27 @@ module PageObject
       # form
       
       # def form(name, selector)
-      #   @accessor_selectors[name.to_sym] = selector.clone
+      #   accessor_selectors[name.to_sym] = selector.clone
       #   text_getters(name, :form) # why do you need get text getters?
       #   standard_methods(name, :form)
       # end
 
       #unordered list generators
       def unordered_list(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         standard_methods(name, :unordered_list)
       end
           
       # table generators
       def table(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         standard_methods(name, :table)
       end
 
       # cell generators
     
       def cell(name, selector)
-        @accessor_selectors[name.to_sym] = selector.clone
+        accessor_selectors[name.to_sym] = selector.clone
         text_getters(name, :cell)
         standard_methods(name, :cell)
       end
@@ -236,7 +294,7 @@ module PageObject
       # (PageObject::LocatorGenerator::BASIC_ELEMENTS + 
       #   PageObject::LocatorGenerator::ADVANCED_ELEMENTS).each do |tag|
       #   define_method("#{tag}") do |name, selector|
-      #     @accessor_selectors[name.to_sym] = selector.clone
+      #     accessor_selectors[name.to_sym] = selector.clone
       #     standard_methods(name, tag)
       #   end
       # end
@@ -276,3 +334,4 @@ module PageObject
     
   end
 end
+
