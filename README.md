@@ -92,6 +92,77 @@ browser = Selenium::WebDriver.for :firefox
 my_page_object = MyPageObject.new(browser)
 ````
 
+### Nested Dynamic Elements
+For pages that are dynamic, it's hard to define static page accessors.
+
+For example: A quiz creation page can create one quiz with any number of questions. Using Rails nested attributes, you can have an "Add one more question" button that adds one more question to the quiz dynamically.
+Even if each question only have a few answers. With many questions, it can get really
+complicated real quick to keep track of all the question fields and their answers fields. 
+
+You can use the DynamicElementAccessor module to help you navigate through this. 
+
+````html
+<div class='questions'>
+  <label>Question</label>
+  <input id='question' type='text'>
+  <label>Answers</label>
+  <input id='answer1' type='text'>
+  <input id='answer2' type='text'>
+</div>
+<button>Add one more question</button>
+````
+First define class for one of your dynamic objects. In this case a single question.
+
+````ruby
+class QuizQuestion
+  include PageObject::DynamicElementAccessor
+
+  # definte accessors as you normally with page objects
+  # you can create another 'Answer' class with this module mixed in
+  # if you want arbitrary number of answers, it can be nested.  
+  text_field :question,    :css => "input[id$=question]"
+  text_field :answer1,     :css => "input[id$=answer1]"
+  text_field :answer2,     :css => "input[id$=answer2]"
+end
+````
+Inside your QuizCreator page object, define a getter that gets the all the questions.
+If new question gets added as a result of some dynamic actions on the page simply call get_questions again to get the new set of questions. 
+
+````ruby
+class QuizCreator
+  include PageObject
+  # ...
+  def get_questions
+    questions = []
+
+	# get the containers that groups your sub elements
+	
+    elements = self.div_elements(:css => "div.question")
+	
+	# create a QuizQuestion container for each one of them
+    elements.each do |element|
+      if element.visible?
+        questions << QuizQuestion.new(
+          :page_object    => self,
+          :parent_element => element
+        )
+      end
+    end
+    questions
+  end
+  # ... rest of your class
+end   
+````
+
+After you get the list of questions back, you can operate on each question object as if they are page object themselves.
+````ruby
+questions = QuizCreator.new(...).get_questions
+questions[0].question ="123"
+questions[0].answer1  ="234"
+questions[1].question ="abc"
+questions[1].answer2  ="efg"
+````
+
 ## Known Issues
 
 See [http://github.com/cheezy/page-object/issues](http://github.com/cheezy/page-object/issues)
